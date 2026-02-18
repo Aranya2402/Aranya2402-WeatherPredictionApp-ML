@@ -1,0 +1,17 @@
+Feature,Importance
+weathercode,0.27315363
+month,0.18992954
+temp_range,0.18554513
+week_of_year,0.14308344
+quarter,0.11834259
+temperature_2m_min,0.04575519
+temperature_2m_max,0.044190492
+windspeed_10m_max,0.0
+year,0.0
+city,0.0
+country,0.0
+day_of_week,0.0
+day,0.0
+wind_squared,0.0
+wind_log,0.0
+weather_category,0.0

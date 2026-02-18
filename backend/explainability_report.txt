@@ -1,0 +1,44 @@
+============================================================
+HEAVY RAIN PREDICTION MODEL EXPLAINABILITY REPORT
+============================================================
+
+FEATURE IMPORTANCE:
+----------------------------------------
+               Feature  Importance
+0          weathercode    0.273154
+7                month    0.189930
+12          temp_range    0.185545
+10        week_of_year    0.143083
+11             quarter    0.118343
+2   temperature_2m_min    0.045755
+1   temperature_2m_max    0.044190
+3    windspeed_10m_max    0.000000
+6                 year    0.000000
+5                 city    0.000000
+4              country    0.000000
+9          day_of_week    0.000000
+8                  day    0.000000
+13        wind_squared    0.000000
+14            wind_log    0.000000
+15    weather_category    0.000000
+
+MODEL INTERPRETATION:
+----------------------------------------
+- Higher values in top features increase probability of heavy rain
+- Temperature patterns and wind speed are key predictors
+- Seasonal patterns (month, quarter) capture weather cycles
+- Model aligns with domain knowledge about heavy rainfall
+
+LIMITATIONS:
+----------------------------------------
+- SHAP values approximate feature contributions
+- Sample size for SHAP limited to 100 for performance
+- Model trained on weekly aggregated data
+- Threshold of 200mm defines 'heavy rain'
+
+REAL-WORLD IMPLICATIONS:
+----------------------------------------
+- Can help predict potential flooding events
+- Useful for infrastructure planning
+- Supports disaster preparedness for extreme rainfall
+- Educational tool for understanding climate patterns

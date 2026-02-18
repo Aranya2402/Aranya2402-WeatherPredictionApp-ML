@@ -1,0 +1,14 @@
+# Backend dependencies
+fastapi
+uvicorn[standard]
+pandas
+numpy
+scikit-learn
+xgboost
+joblib
+matplotlib
+seaborn
+python-multipart
+
+# Note: shap is commented out due to build issues on Windows
+# Install separately if needed: pip install shap

@@ -1,0 +1,4 @@
+# Frontend dependencies
+flask
+requests
+python-dotenv

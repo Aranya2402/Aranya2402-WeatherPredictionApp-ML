@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Prediction - Will it Rain Tomorrow?</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 10px rgba(102,126,234,0.2);
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #111;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .result-card h2 {
+            color: white;
+            border-bottom-color: white;
+        }
+        
+        .prediction-box {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .rain-emoji {
+            font-size: 5em;
+            margin-bottom: 20px;
+        }
+        
+        .prediction-text {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+        }
+        
+        .probability {
+            font-size: 1.5em;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .confidence {
+            font-size: 1.2em;
+            color: white;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        
+        .message {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #111;
+            font-style: italic;
+        }
+        
+        .error-message {
+            background: #ff6b6b;
+            color: #111;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .info-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .info-label {
+            font-size: 0.9em;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #111;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+        
+        .feature-importance {
+            margin-top: 20px;
+        }
+        
+        .importance-bar {
+            margin: 10px 0;
+        }
+        
+        .importance-bar .label {
+            display: inline-block;
+            width: 150px;
+            font-size: 0.9em;
+            color: white;
+        }
+        
+        .bar-container {
+            display: inline-block;
+            width: calc(100% - 160px);
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .bar {
+            height: 100%;
+            background: linear-gradient(90deg, #f9ca24, #f093fb);
+            transition: width 0.3s;
+        }
+        
+        .percentage {
+            margin-left: 10px;
+            color: white;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌤️ Weather Prediction</h1>
+            <p>Will it rain tomorrow? Enter your weather data to find out!</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Input Form -->
+            <div class="card">
+                <h2>📊 Enter Weather Data</h2>
+                <form id="weatherForm" method="POST" action="/predict">
+                    <div class="form-group">
+                        <label for="weathercode">Weather Code (WMO)</label>
+                        <input type="number" step="0.1" id="weathercode" name="weathercode" 
+                               value="{% if input_data and input_data.weathercode %}{{ input_data.weathercode }}{% else %}63.0{% endif %}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="temperature_2m_max">Max Temperature (°C)</label>
+                        <input type="number" step="0.1" id="temperature_2m_max" name="temperature_2m_max" 
+                               value="{% if input_data and input_data.temperature_2m_max %}{{ input_data.temperature_2m_max }}{% else %}28.9{% endif %}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="temperature_2m_min">Min Temperature (°C)</label>
+                        <input type="number" step="0.1" id="temperature_2m_min" name="temperature_2m_min" 
+                               value="{% if input_data and input_data.temperature_2m_min %}{{ input_data.temperature_2m_min }}{% else %}22.9{% endif %}" required>
+                    </div>
+                    <div class="form-group">
+    <label for="temperature_2m_mean">Mean Temperature (°C)</label>
+    <input type="number" step="0.1" id="temperature_2m_mean" name="temperature_2m_mean" 
+           value="{% if input_data and input_data.temperature_2m_mean %}{{ input_data.temperature_2m_mean }}{% else %}25.9{% endif %}" required>
+</div>
+                    <div class="form-group">
+    <label for="rain_sum">Rain Sum (mm)</label>
+    <input type="number" step="0.1" id="rain_sum" name="rain_sum" 
+           value="{% if input_data and input_data.rain_sum %}{{ input_data.rain_sum }}{% else %}250.0{% endif %}" required>
+</div>
+
+<div class="form-group">
+    <label for="precipitation_sum">Precipitation Sum (mm)</label>
+    <input type="number" step="0.1" id="precipitation_sum" name="precipitation_sum" 
+           value="{% if input_data and input_data.precipitation_sum %}{{ input_data.precipitation_sum }}{% else %}250.0{% endif %}" required>
+</div>
+                    
+                    <div class="form-group">
+                        <label for="windspeed_10m_max">Wind Speed (km/h)</label>
+                        <input type="number" step="0.1" id="windspeed_10m_max" name="windspeed_10m_max" 
+                               value="{% if input_data and input_data.windspeed_10m_max %}{{ input_data.windspeed_10m_max }}{% else %}14.7{% endif %}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="country">Country</label>
+                        <select id="country" name="country" required>
+                            <option value="Sri Lanka" {% if input_data and input_data.country == 'Sri Lanka' %}selected{% endif %}>Sri Lanka</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="city">City</label>
+                        <select id="city" name="city" required>
+                            <option value="Colombo" {% if input_data and input_data.city == 'Colombo' %}selected{% endif %}>Colombo</option>
+                            <option value="Mount Lavinia" {% if input_data and input_data.city == 'Mount Lavinia' %}selected{% endif %}>Mount Lavinia</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit">🔮 Predict Weather</button>
+                </form>
+            </div>
+            
+            <!-- Results -->
+            <div class="card result-card">
+                <h2>🎯 Prediction Result</h2>
+                
+                {% if error %}
+                <div class="error-message">
+                    {{ error }}
+                </div>
+                {% endif %}
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p style="color: white; margin-top: 10px;">Analyzing weather patterns...</p>
+                </div>
+                
+                {% if result %}
+                <div class="prediction-box">
+                    <div class="rain-emoji">
+                        {% if result.prediction == 1 %}
+                        🌧️
+                        {% else %}
+                        ☀️
+                        {% endif %}
+                    </div>
+                    <div class="prediction-text">
+                        {{ result.rain_tomorrow }}
+                    </div>
+                    <div class="probability">
+                        {{ result.confidence }}
+                    </div>
+                    <div class="message">
+                        {{ result.message }}
+                    </div>
+                    
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Model Type</div>
+                            <div class="info-value">XGBoost</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Prediction</div>
+                            <div class="info-value">{% if result.prediction == 1 %}Rain{% else %}No Rain{% endif %}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Probability</div>
+                            <div class="info-value">{{ "%.1f"|format(result.probability*100) }}%</div>
+                        </div>
+                    </div>
+                    
+                    {% if result.feature_importance %}
+                    <div class="feature-importance">
+                        <h3 style="color: white; margin: 20px 0 10px;">📊 Feature Importance</h3>
+{% set sorted_features = result.feature_importance.items()|sort(attribute='1', reverse=True) %}                        {% for feature, importance in sorted_features %}
+                        {% if loop.index <= 5 %}
+                        <div class="importance-bar">
+                            <span class="label">{{ feature[:20] }}</span>
+                            <div class="bar-container">
+                                <div class="bar" style="width: '{{ (importance * 100)|int }}%';"></div>
+                            </div>
+                            <span class="percentage">{{ "%.1f"|format(importance*100) }}%</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div style="text-align: center; color: white; padding: 40px;">
+                    <p style="font-size: 1.5em;">👈 Enter weather data to see prediction</p>
+                    <p>The model will analyze the patterns and predict if it will rain tomorrow</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Show loading spinner when form is submitted
+        document.getElementById('weatherForm').addEventListener('submit', function() {
+            document.getElementById('loading').classList.add('active');
+        });
+        
+        // Auto-refresh health check
+        setInterval(function() {
+            fetch('/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Backend health:', data);
+                })
+                .catch(error => {
+                    console.error('Health check failed:', error);
+                });
+        }, 30000);  // Check every 30 seconds
+    </script>
+</body>
+</html>
