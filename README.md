@@ -5,7 +5,7 @@ python data_preprocessing.py
 python train.py
 uvicorn main:app --reload --port 8000
 
-# Frontend (in another terminal)
+# Frontend 
 cd frontend
 pip install -r requirements.txt
 python app.py
