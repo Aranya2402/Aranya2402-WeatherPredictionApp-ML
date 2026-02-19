@@ -1,0 +1,28 @@
+# Exclude virtual environments (saves ~500MB upload to Docker daemon)
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Generated output files (not needed in container)
+*.png
+confusion_matrix.png
+feature_importance*.png
+shap_*.png
+explainability_report.txt
+feature_importance*.csv
+feature_importance_detailed.csv
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/

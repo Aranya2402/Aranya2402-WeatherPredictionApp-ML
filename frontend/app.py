@@ -9,8 +9,8 @@ import os
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Backend URL
-BACKEND_URL = 'http://localhost:8000'
+# Backend URL - reads from environment variable (set by Docker Compose)
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
 
 @app.route('/')
 def index():
@@ -19,6 +19,11 @@ def index():
         return render_template('index.html')
     except Exception as e:
         return f"Error loading template: {str(e)}"
+
+@app.route('/api/health')
+def health():
+    """Health check endpoint for Docker Compose"""
+    return jsonify({"status": "healthy", "service": "frontend"})
 
 @app.route('/predict', methods=['POST'])
 def predict():
