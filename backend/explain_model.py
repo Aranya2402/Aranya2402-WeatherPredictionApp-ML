@@ -34,6 +34,14 @@ class ModelExplainer:
         print(f"   Features: {len(self.feature_names)}")
         print(f"   Best params: {self.best_params}")
         
+        # Check feature importance distribution
+        importance = self.model.feature_importances_
+        n_zero = sum(importance == 0)
+        print(f"\n📊 Feature Importance Summary:")
+        print(f"   Total features: {len(importance)}")
+        print(f"   Features with zero importance: {n_zero}")
+        print(f"   Features with non-zero importance: {len(importance) - n_zero}")
+        
         # Load data
         print("\n📂 Loading data...")
         self.df = pd.read_csv(data_path)
@@ -56,6 +64,8 @@ class ModelExplainer:
             threshold = 200.0
             df_features['RainTomorrow'] = np.where(df_features['rain_sum'] > threshold, 1, 0)
             print(f"   Created target with threshold: {threshold}mm")
+            print(f"   Class distribution:")
+            print(df_features['RainTomorrow'].value_counts())
         
         # Apply the SAME preprocessing as in train.py
         if 'time' in df_features.columns:
@@ -87,10 +97,12 @@ class ModelExplainer:
             df_features['wind_log'] = np.log1p(df_features['windspeed_10m_max'])
         
         if 'weathercode' in df_features.columns:
+            # Handle potential NaN values
+            df_features['weathercode'] = df_features['weathercode'].fillna(0)
             df_features['weather_category'] = pd.cut(
                 df_features['weathercode'], 
-                bins=[-1, 19, 29, 39, 49, 69, 79, 99], 
-                labels=[0, 1, 2, 3, 4, 5, 6]
+                bins=[-1, 19, 29, 39, 49, 69, 79, 99, 999], 
+                labels=[0, 1, 2, 3, 4, 5, 6, 7]
             ).astype(int)
         
         if 'temperature_2m_mean' in df_features.columns and 'windspeed_10m_max' in df_features.columns:
@@ -109,6 +121,16 @@ class ModelExplainer:
                 df_features = df_features.drop(col, axis=1)
         
         # Get features for SHAP
+        # Only use features that exist in both
+        available_features = [f for f in self.feature_names if f in df_features.columns]
+        missing_features = [f for f in self.feature_names if f not in df_features.columns]
+        
+        if missing_features:
+            print(f"\n⚠️ Warning: Missing features: {missing_features}")
+            print("   Adding them with default values (0)")
+            for f in missing_features:
+                df_features[f] = 0
+        
         X = df_features[self.feature_names]
         y = df_features['RainTomorrow']
         
@@ -139,25 +161,35 @@ class ModelExplainer:
             'Importance': importance
         }).sort_values('Importance', ascending=False)
         
-        print("\n🔝 Top 10 Most Important Features:")
-        print(importance_df.head(10).to_string(index=False))
+        # Filter to show only non-zero importance
+        non_zero = importance_df[importance_df['Importance'] > 0]
         
-        # Plot with better styling
+        print(f"\n📊 Features with non-zero importance ({len(non_zero)}):")
+        print(non_zero.to_string(index=False))
+        
+        print(f"\n📊 Features with zero importance ({len(importance_df) - len(non_zero)}):")
+        zero_features = importance_df[importance_df['Importance'] == 0]['Feature'].tolist()
+        print(zero_features)
+        
+        # Plot only non-zero features (or top 10 if too many)
+        plot_features = non_zero if len(non_zero) <= 10 else non_zero.head(10)
+        
         plt.figure(figsize=(12, 8))
         
         # Create horizontal bar chart
-        colors = plt.cm.viridis(np.linspace(0, 1, len(importance_df.head(10))))
-        bars = plt.barh(importance_df['Feature'].head(10)[::-1], 
-                       importance_df['Importance'].head(10)[::-1], 
+        colors = plt.cm.viridis(np.linspace(0, 1, len(plot_features)))
+        bars = plt.barh(plot_features['Feature'][::-1], 
+                       plot_features['Importance'][::-1], 
                        color=colors[::-1])
         
         plt.xlabel('Importance Score', fontsize=14, fontweight='bold')
         plt.ylabel('Features', fontsize=14, fontweight='bold')
-        plt.title('Feature Importance Analysis', fontsize=16, fontweight='bold')
+        plt.title(f'Feature Importance Analysis\n({len(non_zero)} features contribute to predictions)', 
+                 fontsize=16, fontweight='bold')
         plt.grid(axis='x', alpha=0.3)
         
         # Add value labels
-        for i, (bar, val) in enumerate(zip(bars, importance_df['Importance'].head(10)[::-1])):
+        for i, (bar, val) in enumerate(zip(bars, plot_features['Importance'][::-1])):
             plt.text(val + 0.01, bar.get_y() + bar.get_height()/2, 
                     f'{val:.4f}', va='center', fontsize=10)
         
@@ -184,14 +216,24 @@ class ModelExplainer:
         print("   • Shows contribution of each feature to the prediction")
         print("   • Positive values push prediction towards heavy rain")
         print("   • Negative values push prediction towards no heavy rain")
-        print("   • Based on game theory principles")
+        print("   • Features with zero importance will have zero SHAP values")
         
         # Create SHAP explainer
         print("\n🔄 Computing SHAP values (this may take a moment)...")
         explainer = shap.TreeExplainer(self.model)
         shap_values = explainer.shap_values(self.X_sample)
         
-        # Summary plot
+        # Calculate mean absolute SHAP values to see feature impact
+        mean_abs_shap = np.mean(np.abs(shap_values), axis=0)
+        shap_importance = pd.DataFrame({
+            'Feature': self.feature_names,
+            'Mean |SHAP|': mean_abs_shap
+        }).sort_values('Mean |SHAP|', ascending=False)
+        
+        print("\n📊 Feature Impact by Mean |SHAP|:")
+        print(shap_importance.head(10).to_string(index=False))
+        
+        # Summary plot (will automatically only show features with non-zero SHAP)
         print("\n📊 Generating SHAP summary plot...")
         plt.figure(figsize=(14, 10))
         shap.summary_plot(shap_values, self.X_sample, 
@@ -221,17 +263,26 @@ class ModelExplainer:
         print("3. INDIVIDUAL PREDICTION ANALYSIS")
         print("=" * 60)
         
-        for idx in range(min(3, len(self.X_sample))):
-            self.analyze_single_prediction(idx, explainer, shap_values)
+        # Pick samples from both classes if available
+        class_0_indices = self.y_sample[self.y_sample == 0].index
+        class_1_indices = self.y_sample[self.y_sample == 1].index
+        
+        if len(class_0_indices) > 0:
+            idx = self.X_sample.index.get_loc(class_0_indices[0])
+            self.analyze_single_prediction(idx, explainer, shap_values, "No Heavy Rain")
+        
+        if len(class_1_indices) > 0:
+            idx = self.X_sample.index.get_loc(class_1_indices[0])
+            self.analyze_single_prediction(idx, explainer, shap_values, "Heavy Rain")
         
         return shap_values
     
-    def analyze_single_prediction(self, idx, explainer, shap_values):
+    def analyze_single_prediction(self, idx, explainer, shap_values, case_type):
         """
         Analyze a single prediction in detail
         """
         print(f"\n{'─' * 60}")
-        print(f"🔍 Analyzing Sample #{idx}")
+        print(f"🔍 Analyzing {case_type} Sample")
         print(f"{'─' * 60}")
         
         sample = self.X_sample.iloc[idx:idx+1]
@@ -249,21 +300,25 @@ class ModelExplainer:
         for i, col in enumerate(self.feature_names):
             val = sample[col].values[0]
             shap_val = shap_values[idx][i]
-            feature_contributions.append({
-                'feature': col,
-                'value': val,
-                'shap': shap_val,
-                'abs_shap': abs(shap_val)
-            })
+            if abs(shap_val) > 0:  # Only show features that actually contributed
+                feature_contributions.append({
+                    'feature': col,
+                    'value': val,
+                    'shap': shap_val,
+                    'abs_shap': abs(shap_val)
+                })
         
         # Sort by absolute SHAP value
         feature_contributions.sort(key=lambda x: x['abs_shap'], reverse=True)
         
-        for fc in feature_contributions[:5]:
-            emoji = '🔺' if fc['shap'] > 0 else '🔻'
-            print(f"   {emoji} {fc['feature']:25}: {fc['value']:8.2f}  (SHAP: {fc['shap']:+.4f})")
+        if feature_contributions:
+            for fc in feature_contributions[:5]:
+                emoji = '🔺' if fc['shap'] > 0 else '🔻'
+                print(f"   {emoji} {fc['feature']:25}: {fc['value']:8.2f}  (SHAP: {fc['shap']:+.4f})")
+        else:
+            print("   No features with non-zero SHAP values for this sample")
         
-        # Waterfall plot
+        # Waterfall plot (will only show features with non-zero SHAP)
         print(f"\n📊 Generating SHAP waterfall plot...")
         plt.figure(figsize=(12, 8))
         shap.waterfall_plot(
@@ -276,10 +331,10 @@ class ModelExplainer:
             show=False,
             max_display=15
         )
-        plt.title(f'SHAP Waterfall Plot - Sample #{idx}\nActual: {"HEAVY RAIN" if actual == 1 else "NO HEAVY RAIN"}', 
+        plt.title(f'SHAP Waterfall Plot - {case_type} Sample\nActual: {"HEAVY RAIN" if actual == 1 else "NO HEAVY RAIN"}', 
                  fontsize=14, fontweight='bold')
         plt.tight_layout()
-        plt.savefig(f'shap_waterfall_sample_{idx}.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'shap_waterfall_{case_type.lower().replace(" ", "_")}.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def generate_report(self):
@@ -305,27 +360,34 @@ class ModelExplainer:
         print("📌 KEY FINDINGS AND INTERPRETATION")
         print("=" * 60)
         
-        print("\n🔝 Most Important Features:")
-        for i, row in importance_df.head(5).iterrows():
+        non_zero = importance_df[importance_df['Importance'] > 0]
+        
+        print(f"\n🔝 Most Important Features ({len(non_zero)} total):")
+        for i, row in non_zero.head(5).iterrows():
             print(f"   {i+1}. {row['Feature']}: {row['Importance']:.4f}")
         
+        if len(non_zero) < len(importance_df):
+            print(f"\n📉 Features with zero importance ({len(importance_df) - len(non_zero)}):")
+            print("   These features don't contribute to predictions - this is normal!")
+            print("   XGBoost automatically selects the most useful features.")
+        
         print("\n🎯 Model Interpretation:")
-        print("   • Higher values in top features increase probability of heavy rain")
-        print("   • Temperature patterns and wind speed are key predictors")
-        print("   • Seasonal patterns (month, quarter) capture weather cycles")
-        print("   • Model aligns with domain knowledge about heavy rainfall")
+        print("   • The model uses only the most predictive features")
+        print("   • Features with zero importance can be safely ignored")
+        print("   • This makes the model simpler and more interpretable")
+        print("   • Top features align with domain knowledge about heavy rainfall")
         
         print("\n⚠️  Limitations:")
-        print("   • SHAP values approximate feature contributions")
-        print("   • Sample size for SHAP limited to 100 for performance")
+        print("   • Some features have zero impact on predictions")
+        print("   • SHAP values only meaningful for features with non-zero importance")
         print("   • Model trained on weekly aggregated data")
         print("   • Threshold of 200mm defines 'heavy rain'")
         
         print("\n🌍 Real-world Implications:")
+        print("   • Simple model focuses on key predictors")
+        print("   • Easier to interpret and explain to stakeholders")
         print("   • Can help predict potential flooding events")
-        print("   • Useful for infrastructure planning")
         print("   • Supports disaster preparedness for extreme rainfall")
-        print("   • Educational tool for understanding climate patterns")
         
         # Save report
         with open('explainability_report.txt', 'w') as f:
@@ -338,26 +400,29 @@ class ModelExplainer:
             f.write(importance_df.to_string())
             f.write("\n\n")
             
+            f.write(f"Features with zero importance: {len(importance_df) - len(non_zero)}\n")
+            f.write("This is normal - XGBoost automatically selects features\n\n")
+            
             f.write("MODEL INTERPRETATION:\n")
             f.write("-" * 40 + "\n")
-            f.write("- Higher values in top features increase probability of heavy rain\n")
-            f.write("- Temperature patterns and wind speed are key predictors\n")
-            f.write("- Seasonal patterns (month, quarter) capture weather cycles\n")
-            f.write("- Model aligns with domain knowledge about heavy rainfall\n\n")
+            f.write("- The model uses only the most predictive features\n")
+            f.write("- Features with zero importance can be safely ignored\n")
+            f.write("- This makes the model simpler and more interpretable\n")
+            f.write("- Top features align with domain knowledge about heavy rainfall\n\n")
             
             f.write("LIMITATIONS:\n")
             f.write("-" * 40 + "\n")
-            f.write("- SHAP values approximate feature contributions\n")
-            f.write("- Sample size for SHAP limited to 100 for performance\n")
+            f.write("- Some features have zero impact on predictions\n")
+            f.write("- SHAP values only meaningful for features with non-zero importance\n")
             f.write("- Model trained on weekly aggregated data\n")
             f.write("- Threshold of 200mm defines 'heavy rain'\n\n")
             
             f.write("REAL-WORLD IMPLICATIONS:\n")
             f.write("-" * 40 + "\n")
+            f.write("- Simple model focuses on key predictors\n")
+            f.write("- Easier to interpret and explain to stakeholders\n")
             f.write("- Can help predict potential flooding events\n")
-            f.write("- Useful for infrastructure planning\n")
             f.write("- Supports disaster preparedness for extreme rainfall\n")
-            f.write("- Educational tool for understanding climate patterns\n")
         
         print("\n✅ Report saved to: explainability_report.txt")
 

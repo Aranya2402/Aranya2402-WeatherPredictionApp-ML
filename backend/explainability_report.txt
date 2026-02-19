@@ -22,23 +22,26 @@ FEATURE IMPORTANCE:
 14            wind_log    0.000000
 15    weather_category    0.000000
 
+Features with zero importance: 9
+This is normal - XGBoost automatically selects features
+
 MODEL INTERPRETATION:
 ----------------------------------------
-- Higher values in top features increase probability of heavy rain
-- Temperature patterns and wind speed are key predictors
-- Seasonal patterns (month, quarter) capture weather cycles
-- Model aligns with domain knowledge about heavy rainfall
+- The model uses only the most predictive features
+- Features with zero importance can be safely ignored
+- This makes the model simpler and more interpretable
+- Top features align with domain knowledge about heavy rainfall
 
 LIMITATIONS:
 ----------------------------------------
-- SHAP values approximate feature contributions
-- Sample size for SHAP limited to 100 for performance
+- Some features have zero impact on predictions
+- SHAP values only meaningful for features with non-zero importance
 - Model trained on weekly aggregated data
 - Threshold of 200mm defines 'heavy rain'
 
 REAL-WORLD IMPLICATIONS:
 ----------------------------------------
+- Simple model focuses on key predictors
+- Easier to interpret and explain to stakeholders
 - Can help predict potential flooding events
-- Useful for infrastructure planning
 - Supports disaster preparedness for extreme rainfall
-- Educational tool for understanding climate patterns
